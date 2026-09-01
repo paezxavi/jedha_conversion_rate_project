@@ -1,0 +1,6 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+jedha_conversion_rate__instructions.ipynb
+02-Conversion_rate_challenge_template.ipynb
