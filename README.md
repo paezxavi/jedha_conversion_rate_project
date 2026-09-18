@@ -20,8 +20,9 @@ something the team can act on.
 The model was built as asked. It reaches **f1 = 0.77 on unseen visitors**, and the answer to the
 question behind the brief is uncomfortable:
 
-> The score is almost entirely carried by **how many pages the visitor read** — a number that only
-> exists once the visit is over. Remove it and the f1 falls from **0.77 to 0.21**.
+> The score is almost entirely carried by **how many pages the visitor read** — a behaviour that
+> happens during the visit, which the team can encourage on the site but cannot target before it.
+> Remove it and the f1 falls from **0.77 to 0.21**.
 >
 > The one column that can be acted on before the visit is the **country**, and it holds the whole
 > opportunity: **China is 24% of the traffic and 1% of the sign-ups.**
@@ -38,11 +39,10 @@ both rules would be wrong:
 - **268 769 rows are exact duplicates — and none of them is a duplicate.** Five columns describe
   only 13 942 distinct profiles, and 1 869 of those profiles appear with *both* outcomes: same
   country, same age, same page count, one subscribed and one did not. `drop_duplicates()` deletes
-  94% of the file and turns a 3.2% conversion rate into 25.7%. Priced in the notebook: **−8.6
-  points of f1**.
-- **Two visitors are aged 111 and 123.** Data-entry errors, 0.003% of the file, and the file to
-  predict contains nobody above 69. Removing them moves the f1 by **+0.0003**, so they stay and the
-  notebook says why instead of silently trimming a distribution.
+  94% of the file and turns a 3.2% conversion rate into 25.7%.
+- **Two visitors are aged 111 and 123**, cut off from the rest of the column by a 32-year gap. The
+  file says nothing about what produced them, a ±3σ filter would cut at 55 and delete 1 017 rows,
+  and the file to predict contains nobody above 69 — so they stay, and the notebook says why.
 
 ## What we found
 
@@ -97,7 +97,7 @@ A logistic regression on the five columns: standardised numerics, one-hot catego
 80/20 split. **f1 0.762 on train, 0.768 on test** at the default threshold — eight features on
 227 664 rows leaves nothing to memorise.
 
-Two things then improved it, and one did not:
+One thing then improved it, and nothing else did:
 
 - **The decision threshold** — 0.5 minimises the error count, which is not what f1 measures.
   Cross-validated on the training set alone it lands on **0.399**, worth **+0.006 of f1** (0.7678 →
@@ -105,36 +105,42 @@ Two things then improved it, and one did not:
 - **Nothing else beat the straight line.** Gradient boosting (0.771), a pruned random forest
   (0.767) and a tuned penalty (0.774) all land inside the ±0.006 that separates two random splits.
   The unpruned forest is the only clear result — 0.81 on train against 0.74 on test.
-- **The ceiling is 0.806.** An oracle that knows the conversion rate of all 13 942 profiles, on the
-  file itself, scores 0.806: **3 358 visits are described by a profile that appears with both
-  outcomes** and no model reading these five columns can separate them. Stopping at 0.774 is a
-  measurement, not a shrug.
 
 ![Model coefficients](images/5_coefficients.png)
 
-Read as odds ratios: being outside China multiplies the odds of subscribing by **21 to 37**, every
-3.3 extra pages by **12.5**, being a new visitor divides them by **5.5**, and eight years of age by
-**1.8**. `Seo` against `Ads` is ×0.97 — nothing.
-
-The same model, read as the rule it applies: **read about twelve pages and you are a likely
-subscriber — unless you are in China, where it takes sixteen.**
+Sorted by absolute value: the country first (**+3.1 to +3.6** for Germany, the UK and the US against
+China), then the pages read (**+2.5** per 3.3 pages), the new visitor (**−1.7**) and the age (**−0.6**
+per 8.3 years). `Seo` against `Ads` is −0.03 — nothing. The largest coefficient is not the most
+useful column: weighted by the standard deviation of each column as the model sees it (1 for the
+standardised numerics, √(p(1−p)) for a 0/1 indicator on in a share p of the visits), Germany's 3.6
+becomes **0.72** — it is on in 4% of the visits — while the page counter keeps its **2.5** and stays
+first by a wide margin, which is what the ablation measured directly.
 
 ## What the newsletter team should do
 
-1. **Use it as a session scorer, not a campaign planner.** `total_pages_visited` only exists once
-   the visit is over, so the model cannot rank an audience beforehand. Live, it can: at the twelfth
-   page it is right four times out of five, which is a sign-up prompt triggered on a score rather
-   than on every page.
-2. **Audit the Chinese sign-up path before buying any traffic.** 24% of visits, 0.13% conversion
-   against 3.8% for the US, and the gap holds at equal reading depth — a form that does not submit,
-   an e-mail that does not deliver, a missing translation. **At the US rate those same visits would
+Six levers — what the file measured, then the action.
+
+1. **Get the visitor to read one more page.** The most useful column (2.52); 0.2% conversion under
+   9 pages, 13.3% from 9 to 14, 89.5% from 15. Make the next page easy to reach (related articles,
+   previous issues) and A/B test it — deep readers subscribe, a pushed visitor may not. Live, a page
+   counter feeds the model as the visit goes on: score the visitor at every page and trigger the
+   sign-up prompt the moment the model calls them a likely subscriber, instead of on every page.
+2. **Protect the US engine.** 56% of the traffic, 66% of the sign-ups, 3.79% conversion — the second
+   most useful column once weighted by volume (1.52). Keep the acquisition volume there, whichever
+   channel brings it.
+3. **Audit and unblock the Chinese sign-up path.** 24% of the traffic, 1% of the sign-ups, 0.13%
+   conversion, and the gap holds at equal reading depth — a last-step failure, not disinterest.
+   Audit the sign-up step (a blocked script, an undelivered confirmation e-mail), the translation,
+   the traffic quality. **At the US rate those visits would
    produce 2 620 sign-ups instead of 89: +28% total conversions, from traffic already paid for.**
-3. **Do not reallocate the acquisition budget on `source`.** The three channels are within half a
-   point of each other and the column is worth 0.002 of f1. A campaign-level breakdown is the thing
-   to log next.
-4. **Log three more columns**: which article was read (not just how many), the device, and the time
-   on page. The ceiling says these five columns are exhausted; the next points have to come from
-   new ones, and two of those three are known *before* the sign-up decision.
+4. **A first-visit path for new visitors.** 69% of the visits, 1.4% against 7.2% for a returning
+   visitor. Show the newsletter on the first visit, give a reason to come back, measure the return.
+5. **Treat Europe as a premium niche, not the next US.** Germany converts best (6.24%) with the largest
+   coefficient (3.61) but 4% of the traffic: weighted, it drops to fifth. Do not move the US budget
+   there; use German and British subscribers as the seed of lookalike audiences.
+6. **Stop arbitrating between acquisition channels.** `source` is worth 0.002 of f1; the three
+   channels convert between 2.8% and 3.5%. Log a campaign-level tag instead — a single `Ads` label is
+   too coarse to hold an answer.
 
 ## The submission
 
