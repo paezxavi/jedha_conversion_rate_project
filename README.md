@@ -102,8 +102,8 @@ One thing then improved it, and nothing else did:
 - **The decision threshold** — 0.5 minimises the error count, which is not what f1 measures.
   Cross-validated on the training set alone it lands on **0.399**, worth **+0.006 of f1** (0.7678 →
   0.7743) and stable at ±0.005 over ten splits. Precision 0.81, recall 0.74.
-- **Nothing else beat the straight line.** Gradient boosting (0.771), a pruned random forest
-  (0.767) and a tuned penalty (0.774) all land inside the ±0.006 that separates two random splits.
+- **Nothing else beat the straight line.** Gradient boosting (0.7705), a pruned random forest
+  (0.7669) and a tuned penalty (0.7736) all land inside the ±0.006 that separates two random splits.
   The unpruned forest is the only clear result — 0.81 on train against 0.74 on test.
 
 ![Model coefficients](images/5_coefficients.png)
